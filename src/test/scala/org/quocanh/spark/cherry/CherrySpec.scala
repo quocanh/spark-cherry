@@ -10,22 +10,73 @@ class CherrySpec extends FunSpec with DataFrameSuiteBase  {
 
   import spark.implicits._
 
-  describe(".createDataFrame"){
+  describe(".createSimpleDataFrame"){
     it ("create a dataframe from dynamic content"){
-      val header = "first_name,last_name,phone"
+      val header = List("first_name","last_name","phone")
 
       // build dynamic content
       var data = List(List("TOM","CAT","1234567890"))
       data = data ++ List(List("JERRY","MOUSE","1324567890"))
 
       // build dataframe from dynamic content
-      val dfFromList = Cherry.createDataFrameFromListWithHeader(data, header)
+      val dfFromList = Cherry.createStringDataFrame(data, header)
 
       // build hardcoded dataframe for assertion
       val dfWithHardcodedValues = Seq(
         ("TOM","CAT","1234567890"),
         ("JERRY","MOUSE","1324567890")
       ).toDF("first_name","last_name","phone")
+
+      assertDataFrameEquals(dfFromList, dfWithHardcodedValues)
+    }
+  }
+
+  describe(".createDataFrameWithSchema"){
+    it ("create a dataframe from dynamic content with schema"){
+      val schema = StructType(
+        List(StructField("first_name", StringType, true),
+          StructField("last_name", StringType, true),
+          StructField("age", IntegerType, false)
+        )
+      )
+
+      // build dynamic content
+      var data = List(List("TOM","CAT",12))
+      data = data ++ List(List("JERRY","MOUSE",14))
+
+      // build dataframe from dynamic content
+      val dfFromList = Cherry.createDataFrame(data, schema)
+
+      // build hardcoded dataframe for assertion
+      val dfWithHardcodedValues = Seq(
+        ("TOM","CAT",12),
+        ("JERRY","MOUSE",14)
+      ).toDF("first_name","last_name","age")
+
+      assertDataFrameEquals(dfFromList, dfWithHardcodedValues)
+    }
+  }
+
+  describe(".createDataFrameFromListWithSchemaTuple"){
+    it ("create a dataframe from dynamic content with a list for schema"){
+      val schemaTuple = List(
+        ("first_name", StringType, true),
+        ("last_name", StringType, true),
+        ("age", IntegerType, false)
+      )
+
+      // build dynamic content
+      var data = List(List("TOM","CAT",12))
+      data = data ++ List(List("JERRY","MOUSE",14))
+
+      // build dataframe from dynamic content
+      val dfFromList = Cherry.createDataFrame(data, schemaTuple)
+
+      // build hardcoded dataframe for assertion
+      val dfWithHardcodedValues = Seq(
+        ("TOM","CAT",12),
+        ("JERRY","MOUSE",14)
+      ).toDF("first_name","last_name","age")
 
       assertDataFrameEquals(dfFromList, dfWithHardcodedValues)
     }

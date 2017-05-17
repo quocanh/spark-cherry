@@ -3,7 +3,7 @@ package org.quocanh.spark.cherry
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql._
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types.{StructType,StructField,StringType}
+import org.apache.spark.sql.types._
 
 object Cherry {
 
@@ -12,17 +12,39 @@ object Cherry {
   // Hence the data to create a simple dataframe is List[List[String]]
   // The string for header must have the same number of items as the number of columns
   // The header is in un_escaped CSV format
-  def createDataFrameFromListWithHeader(data: List[List[String]], header: String) : DataFrame = {
-
+  def createStringDataFrame(data: List[List[String]], header: List[String]) : DataFrame = {
     val session = SparkSession.builder().getOrCreate() // get spark session
     val rows = data.map{x => Row(x:_*)}
     val rdd = session.sparkContext.parallelize(rows)
-    val schema = StructType(header.split(",").
-       map(fieldName => StructField(fieldName, StringType, true)))
+    val schema = StructType(header.
+      map(fieldName => StructField(fieldName, StringType, true)))
 
     session.sqlContext.createDataFrame(rdd,schema)
-
   }
+
+  // Create a dataframe from list of list of values
+  // This method also needs a schema for the df
+  // Note: data in 1st list must satisfy the types in schema
+  def createDataFrame(data: List[List[Any]], schema: StructType) : DataFrame = {
+    val session = SparkSession.builder().getOrCreate() // get spark session
+    val rows = data.map{x => Row(x:_*)}
+    val rdd = session.sparkContext.parallelize(rows)
+    session.sqlContext.createDataFrame(rdd,schema)
+  }
+
+  // Create a dataframe from list of list of values
+  // This method also needs a list of tuple3 for schema
+  // Note: data in 1st list must satisfy the types in schema
+  def createDataFrame(data: List[List[Any]], schemaTuple: List[Tuple3[String,DataType,Boolean]]) : DataFrame = {
+    val session = SparkSession.builder().getOrCreate() // get spark session
+    val rows = data.map{x => Row(x:_*)}
+    val schema = StructType(schemaTuple.map(column => {
+      StructField(column._1, column._2, column._3)
+    }))
+    val rdd = session.sparkContext.parallelize(rows)
+    session.sqlContext.createDataFrame(rdd,schema)
+  }
+
 
   // Remove duplicate rows in a dataframe for specified columns
   // This method retains only rows that have no duplicates

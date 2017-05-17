@@ -1,4 +1,6 @@
 target/
 project/boot/
+/tmp
+Temp*
 
 .idea
