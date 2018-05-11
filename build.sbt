@@ -1,9 +1,9 @@
 name := "spark-cherry"
 
-version := "0.0.1"
+version := "0.0.2"
 scalaVersion := "2.11.8"
 
-sparkVersion := "2.1.0"
+sparkVersion := "2.2.0"
 
 sparkComponents ++= Seq("sql","hive")
 

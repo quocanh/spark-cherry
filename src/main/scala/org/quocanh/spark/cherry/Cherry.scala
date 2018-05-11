@@ -4,6 +4,7 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql._
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
+import org.apache.spark.sql.expressions.Window
 
 object Cherry {
 
@@ -45,13 +46,19 @@ object Cherry {
     session.sqlContext.createDataFrame(rdd,schema)
   }
 
+  def createDataFrameWithRows(data: List[Row], schema: StructType) : DataFrame = {
+    val session = SparkSession.builder().getOrCreate() // get spark session
+    val rdd = session.sparkContext.parallelize(data)
+    session.sqlContext.createDataFrame(rdd,schema)
+  }
 
   // Remove duplicate rows in a dataframe for specified columns
   // This method retains only rows that have no duplicates
   def duplicateRemoval(df: DataFrame, fieldList: List[String]) : DataFrame = {
-    val df2 = df.groupBy(fieldList.head,fieldList.tail: _*).count()
-    val df3 = df2.filter(col("count") > 1)
-    df.join(df3, fieldList, "leftanti")
+    val window = Window.partitionBy(fieldList.head, fieldList.tail: _*)
+    val column = fieldList(0)
+    df.withColumn("__count", count(column).over(window))
+      .filter(col("__count") === 1).drop("__count")
   }
 
   // Test if input dataframe has all columns in the 'columnList'
@@ -105,9 +112,40 @@ object Cherry {
     }
     return true
   }
-
   // Note: one can wrap isValidProviderNpi into a UDF like this
   // val isValidProviderNpiUdf = udf[Boolean, String](isValidProviderNpi)
   // The above UDF is safe with NULL values
+
+  // Return columns size for string column, 0 for all other types
+  // This is useful for DDL to create a table in a database to load the extracted data from the df
+  def columnSize(df: DataFrame) : List[Int] = {
+    var res = List[Int]()
+    df.schema.foreach{c =>
+      if (c.dataType == StringType) {
+        res = df.agg(max(length(col(c.name)))).first.get(0).asInstanceOf[Int] :: res
+      } else {
+        res = 0 :: res
+      }
+    }
+    res.reverse
+  }
+
+  // Return a dataframe that is a simple profile for the input dataframe
+  // Each row in output dataframe describes one column in the input
+  // The output has three columns: column_name, count-of-not-null-rows, count-of-null-rows
+  def simpleProfile(df: DataFrame) : DataFrame = {
+    val schema = StructType(
+      List(StructField("column_name", StringType, true),
+        StructField("non_empty_count", LongType, false),
+        StructField("empty_count", LongType, false)
+      )
+    )
+    var data = List[List[Any]]()
+    df.columns.foreach{c =>
+      data = data :::
+      List(List(c, df.filter(col(c).isNotNull).count, df.filter(col(c).isNull).count))
+    }
+    Cherry.createDataFrame(data, schema)
+  }
 
 }

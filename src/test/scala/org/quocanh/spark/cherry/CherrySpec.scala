@@ -195,4 +195,49 @@ class CherrySpec extends FunSpec with DataFrameSuiteBase  {
     }
   }
 
+  describe(".columnSize"){
+    it ("gets columns size for a dataframe"){
+      // create a dataframe for testing
+      val df = Seq(
+        ("TOM","CAT",12),
+        ("JENIFER","MOUSE",14)
+      ).toDF("first_name","last_name","age")
+
+      val actual = Cherry.columnSize(df)
+      assert(List(7,5,0) == actual)
+    }
+  }
+
+  describe(".simpleProfile"){
+    it ("create a simple profile for a dataframe"){
+      // create a dataframe for testing
+      val schema = StructType(
+        List(StructField("first_name", StringType, true),
+          StructField("last_name", StringType, true),
+          StructField("age", IntegerType, true)
+        )
+      )
+      val data = List(
+        Row("TOM",null,12),
+        Row("JERRY","MOUSE",null)
+      )
+      val df = Cherry.createDataFrameWithRows(data, schema)
+
+      val actual = df.transform(Cherry.simpleProfile)
+      val expectedSchema = StructType(
+        List(StructField("column_name", StringType, true),
+          StructField("non_empty_count", LongType, false),
+          StructField("empty_count", LongType, false)
+        )
+      )
+      val expectedData = List(
+        List("first_name",2L,0L),
+        List("last_name",1L,1L),
+        List("age",1L,1L)
+      )
+      val expected = Cherry.createDataFrame(expectedData, expectedSchema)
+      assertDataFrameEquals(actual, expected)
+    }
+  }
+
 }
